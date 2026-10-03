@@ -40,6 +40,8 @@ export interface FakeState {
   stats: { activeFps: number; availableDiskSpace: number; renderSkippedFrames: number; renderTotalFrames: number };
   recordDirectory: string;
   streamService: { type: string; settings: Json };
+  /** Media state (OBS_MEDIA_STATE_*) per Media Source input; inputs not listed answer "none". */
+  media?: Record<string, string>;
 }
 
 export const MUTATING_REQUESTS = new Set([
@@ -307,6 +309,10 @@ export class FakeObs {
         return { defaultInputSettings: structuredClone(s.inputDefaults[String(d.inputKind)] ?? {}) };
       case "GetInputMute":
         return { inputMuted: this.input(d.inputName).muted ?? false };
+      case "GetMediaInputStatus": {
+        const i = this.input(d.inputName);
+        return { mediaState: s.media?.[i.name] ?? "OBS_MEDIA_STATE_NONE", mediaDuration: -1, mediaCursor: 0 };
+      }
       case "SetInputSettings": {
         const i = this.input(d.inputName);
         i.settings = d.overlay === false ? (d.inputSettings as Json) : { ...i.settings, ...(d.inputSettings as Json) };

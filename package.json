@@ -1,7 +1,7 @@
 {
   "name": "obs-control-mcp",
-  "version": "0.1.0",
-  "description": "MCP server to inspect and safely control OBS Studio over obs-websocket v5, with a live guard, dry runs by default, Source Record readiness checks and a scene timeline.",
+  "version": "0.2.0",
+  "description": "MCP server to inspect and safely control OBS Studio over obs-websocket v5, with a live guard, dry runs by default, Source Record and IRL readiness checks, a BRB auto-switcher and a scene timeline.",
   "license": "MIT",
   "author": "rjla-developer",
   "repository": {

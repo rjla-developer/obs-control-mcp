@@ -20,6 +20,7 @@ const READ_TOOLS = [
   "get_outputs",
   "get_video_settings",
   "check_source_record",
+  "check_irl",
   "read_timeline",
 ];
 

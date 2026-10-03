@@ -12,6 +12,10 @@ who let an AI assistant near the OBS they stream with.
   streaming or recording unless you explicitly confirm.
 - **«¿Listo para grabar?»** — a readiness check for the
   [Source Record](https://github.com/exeldro/obs-source-record) plugin.
+- **IRL**: «¿listo para el IRL?» checks the wiring of an incoming phone/camera
+  feed (Media Source, live and BRB scenes), and a **BRB auto-switcher**
+  (NOALBS-style, with hysteresis) that runs on the command line, as a dry run
+  until you say `--apply`.
 - **Scene timeline** — a JSON-lines log of which scene was on program, and when,
   so you can cut clips from a VOD later.
 - **No secrets in logs or outputs** — tested.
@@ -43,6 +47,7 @@ who let an AI assistant near the OBS they stream with.
 | `get_outputs` | Stream, recording, replay buffer, virtual camera, recording folder, every output, stream service (key redacted) |
 | `get_video_settings` | Canvas and output resolution, fps |
 | `check_source_record` | Source Record readiness verdict (see below) |
+| `check_irl` | IRL readiness verdict: live and BRB scenes, feed Media Source wiring (see below) |
 | `read_timeline` | Scene timeline summary; what was live at a time or at a second of a stream |
 
 **Write** (guarded: `dry_run` defaults to `true`; `confirmLive=true` required while live)
@@ -84,6 +89,50 @@ number of simultaneous encoders, and whether OBS is streaming/recording.
 The verdict is `ready`, `ready_with_warnings`, `not_ready` or
 `no_source_record_filters`, with a Spanish one-liner (`veredicto`). The command
 line exits 0 / 1 / 2 accordingly (3 on connection errors).
+
+## IRL: readiness check and BRB auto-switcher
+
+For IRL streams the phone or camera sends its feed to a relay and OBS at home
+reads it with a **Media Source** inside a live scene; a **BRB** («be right
+back») scene covers the dropouts. Default names, all configurable: live scene
+`IRL`, BRB scene `Ahorita regreso`, feed input `Señal IRL`.
+
+`check_irl` (MCP) / `obs-control-mcp check-irl [--live S] [--brb S] [--feed I]`
+checks, read-only: both scenes exist and differ; the BRB scene shows
+something; the feed is a Media Source (`ffmpeg_source`), visible in the live
+scene and not in the BRB one; it reads a **network** input and which
+**protocol** (the URL itself is never reported: it names the relay and, with
+SRT, carries the passphrase); SRT without passphrase and plain RTMP are
+flagged; the reconnect delay; **«Close file when inactive»** (with it on, the
+Media Source is closed while BRB is on program, so the switcher could never
+see the feed come back); a Source Record filter on the feed (a clean copy,
+which is what clips are cut from); the stream service; render fps; free disk;
+and whether the feed is playing right now. Verdict and exit codes as `check`.
+
+`obs-control-mcp brb` watches the feed and switches between the two scenes:
+
+```bash
+obs-control-mcp brb                 # dry run: logs what it would do, changes nothing
+obs-control-mcp brb --apply         # switches for real
+obs-control-mcp brb --help          # every option
+```
+
+- Signal: OBS's own media state (`GetMediaInputStatus`: playing or not) and,
+  with `--stats-url http://relay:9997 --stats-path irl`, the bitrate read from
+  a [mediamtx](https://github.com/bluenviron/mediamtx) control API
+  (`bytesReceived` deltas), so a feed that still "plays" at 200 kbps counts as
+  bad too.
+- Hysteresis on both sides: bad for `--down` seconds (default 3) → BRB; good
+  for `--up` seconds (default 5) → back; never two automatic switches within
+  `--dwell` seconds (default 10); bitrate below `--low` (400 kbps) is bad, at
+  or above `--ok` (1000 kbps) is good, in between nothing changes.
+- It only ever moves between its two scenes. With any other scene on program
+  it stands by. A BRB you selected by hand stays until you return (pass
+  `--return-from-manual-brb` for NOALBS-like behaviour).
+- `--apply` is the person's confirmation to act while live (that is the
+  switcher's job); it still goes through the same guard as every write tool
+  and is refused under `OBS_READ_ONLY=1`. The stats URL is treated as a
+  secret (it may carry credentials) and never logged.
 
 ## Scene timeline
 
@@ -158,6 +207,8 @@ Other MCP clients: run `node dist/cli.js` over stdio with the same variables.
 ```bash
 obs-control-mcp            # MCP server on stdio
 obs-control-mcp check      # Source Record readiness, JSON on stdout
+obs-control-mcp check-irl  # IRL readiness, JSON on stdout
+obs-control-mcp brb        # BRB auto-switcher, dry run (add --apply to switch)
 obs-control-mcp timeline   # only record the timeline, until Ctrl-C
 ```
 
@@ -196,6 +247,12 @@ Servidor MCP para **ver y controlar con cuidado** OBS Studio por obs-websocket v
   si hay máscaras *encima* del filtro (se quedan en el archivo), cámaras con
   «Desactivar cuando no se muestra» y el espacio libre en disco — y da un
   veredicto: `ready`, `ready_with_warnings` o `not_ready`.
+- **IRL**: `check_irl` revisa que OBS esté cableado para recibir la señal del
+  teléfono o la cámara (escena en vivo, escena «Ahorita regreso», la Media
+  Source con su protocolo —nunca la URL—, «cerrar cuando no se muestra», el
+  Source Record de la señal limpia) y `obs-control-mcp brb` cambia solo a
+  «Ahorita regreso» cuando la señal se cae y regresa cuando vuelve, con
+  histéresis; sin `--apply` solo dice lo que haría.
 - **Línea de tiempo de escenas**: con `OBS_TIMELINE_FILE`, apunta en un archivo
   JSON-lines qué escena estaba al aire y cuándo; `read_timeline` responde «¿qué
   se veía en el segundo 01:23:45 del directo?» para sacar clips del VOD.

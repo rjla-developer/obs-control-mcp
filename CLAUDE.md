@@ -20,7 +20,11 @@ obs-websocket v5. TypeScript, Node ≥ 22.18, `@modelcontextprotocol/sdk`,
 1. Every tool that changes OBS goes through `runGuarded` (`src/guard.ts`):
    `dry_run` defaults to `true`, and while streaming or recording it needs
    `confirmLive=true`. A new write tool without both is a bug; the tool-list
-   test checks the defaults.
+   test checks the defaults. The `brb` command is the one deliberate
+   exception to the live question: its job is to switch while live, so
+   `--apply` is the person's confirmation (it still goes through `runGuarded`,
+   is a dry run without the flag, only moves between its two scenes, and is
+   refused under `OBS_READ_ONLY=1`).
 2. Every tool result goes through `ok()`/`fail()` in `src/server.ts`
    (redaction by key + scrubbing of literal secrets). Never return raw OBS data.
 3. Log only through `createLogger` (`src/log.ts`), never `console.*`
@@ -39,6 +43,8 @@ obs-websocket v5. TypeScript, Node ≥ 22.18, `@modelcontextprotocol/sdk`,
 | `src/guard.ts` | dry run + live guard |
 | `src/redact.ts`, `src/log.ts` | Redaction and the only logger |
 | `src/sourceRecord.ts` | Source Record readiness: collect (I/O) + `analyzeSourceRecord` (pure) |
+| `src/irl.ts` | IRL readiness (`check_irl`, `check-irl`): collect (I/O) + `analyzeIrl` (pure). Never reports the feed URL, only its protocol |
+| `src/brb.ts` | BRB auto-switcher (`brb` command): `decideBrb` (pure, hysteresis) + `BrbSwitcher` (polls OBS; dry run unless `--apply`) + mediamtx bitrate probe |
 | `src/timeline.ts` | Timeline recorder, lock, summary |
 | `src/server.ts` | Tool definitions |
 | `test/fakeObs.ts` | Fake obs-websocket v5 server used by the tests |

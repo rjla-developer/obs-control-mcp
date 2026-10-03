@@ -15,6 +15,7 @@ import {
   listAllSources,
 } from "./obsData.ts";
 import { redactSettings, type SecretRegistry } from "./redact.ts";
+import { analyzeIrl, collectIrlContext, DEFAULT_IRL_NAMES } from "./irl.ts";
 import { analyzeSourceRecord, collectSourceRecordContext } from "./sourceRecord.ts";
 import { parseTimeline, summarizeTimeline } from "./timeline.ts";
 import { VERSION } from "./version.ts";
@@ -31,7 +32,7 @@ export const INSTRUCTIONS = `Inspect and control OBS Studio over obs-websocket v
 Read tools never change OBS. Tools that change OBS default to dry_run=true: the first call only says what would change; call again with dry_run=false to apply.
 Live guard: while OBS is streaming or recording, changes are refused unless confirmLive=true. Ask the person before passing confirmLive=true — the audience sees the change.
 Secret fields (stream keys, passwords, tokens, URL paths) are shown as "[redacted]"; never send those placeholders back in settings.
-check_source_record answers «¿listo para grabar?» for the Source Record plugin. read_timeline tells which scene was live when.`;
+check_source_record answers «¿listo para grabar?» for the Source Record plugin. check_irl answers «¿listo para el IRL?» (feed Media Source, live and BRB scenes). read_timeline tells which scene was live when.`;
 
 const dryRunArg = z
   .boolean()
@@ -301,6 +302,22 @@ export function createServer(deps: ServerDeps): McpServer {
       annotations: READ,
     },
     wrap("check_source_record", async () => ok(analyzeSourceRecord(await collectSourceRecordContext(obs)))),
+  );
+
+  server.registerTool(
+    "check_irl",
+    {
+      title: "IRL: ready to go out?",
+      description:
+        "«¿Listo para el IRL?» Checks that OBS is wired for an incoming phone/camera feed: the live and BRB scenes exist, the feed is a network Media Source visible in the live scene (not in the BRB one), its URL protocol (never the URL itself), SRT passphrase, reconnect delay, «close when inactive» (would blind the BRB switcher), a Source Record filter for a clean copy, the stream service, render fps and free disk. Verdict: ready, ready_with_warnings, not_ready. Read-only.",
+      inputSchema: {
+        liveScene: z.string().min(1).default(DEFAULT_IRL_NAMES.liveScene).describe("Scene that shows the feed."),
+        brbScene: z.string().min(1).default(DEFAULT_IRL_NAMES.brbScene).describe("Scene shown while the feed is down."),
+        feedInput: z.string().min(1).default(DEFAULT_IRL_NAMES.feedInput).describe("Media Source input that receives the feed."),
+      },
+      annotations: READ,
+    },
+    wrap("check_irl", async (names: { liveScene: string; brbScene: string; feedInput: string }) => ok(analyzeIrl(await collectIrlContext(obs, names)))),
   );
 
   server.registerTool(

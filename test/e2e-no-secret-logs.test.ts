@@ -85,6 +85,25 @@ describe("the real process never prints secrets", () => {
     expect(out).not.toContain(PASSWORD);
   });
 
+  it("`check-irl` prints the verdict as JSON (not ready with the default scenes)", async () => {
+    const { code, out } = await run([CLI, "check-irl"], env());
+    expect(code).toBe(2);
+    expect(out).toMatch(/"verdict": "not_ready"/);
+    expect(out).not.toContain(PASSWORD);
+    expect(out).not.toContain("fake_stream_key_987");
+  });
+
+  it("`brb` refuses to start without its scenes, and `--help` needs no OBS", async () => {
+    const help = await run([CLI, "brb", "--help"], { PATH: process.env.PATH ?? "" });
+    expect(help.code).toBe(0);
+    expect(help.out).toMatch(/--apply/);
+    const { code, out } = await run([CLI, "brb"], env());
+    expect(code).toBe(3);
+    expect(out).toMatch(/No scene named «IRL»/);
+    expect(out).not.toContain(PASSWORD);
+    expect(fake.mutations).toEqual([]);
+  });
+
   it("`check` prints the verdict as JSON", async () => {
     const { code, out } = await run([CLI, "check"], env());
     expect(code).toBe(1); // ready_with_warnings: the screen capture has no audio
