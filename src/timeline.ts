@@ -128,6 +128,7 @@ export class TimelineRecorder {
   private readonly logger: Logger;
   private readonly now: () => Date;
   private readonly sceneItemNames = new Map<string, string>();
+  private stopped = false;
 
   constructor(conn: ObsConnection, writer: TimelineWriter, logger: Logger, now: () => Date = () => new Date()) {
     this.conn = conn;
@@ -137,13 +138,13 @@ export class TimelineRecorder {
   }
 
   start(): void {
-    this.writer.write({ t: this.ts(), type: "recorder", state: "started" });
+    this.write({ t: this.ts(), type: "recorder", state: "started" });
     this.conn.onConnected(async () => {
-      this.writer.write({ t: this.ts(), type: "recorder", state: "connected" });
+      this.write({ t: this.ts(), type: "recorder", state: "connected" });
       await this.snapshot();
     });
     this.conn.onClosed(() => {
-      this.writer.write({ t: this.ts(), type: "recorder", state: "disconnected" });
+      this.write({ t: this.ts(), type: "recorder", state: "disconnected" });
     });
     for (const event of TIMELINE_EVENTS) {
       this.conn.on(event, (data) => {
@@ -153,7 +154,14 @@ export class TimelineRecorder {
   }
 
   stop(reason?: string): void {
-    this.writer.write({ t: this.ts(), type: "recorder", state: "stopped", ...(reason ? { reason } : {}) });
+    if (this.stopped) return;
+    this.write({ t: this.ts(), type: "recorder", state: "stopped", ...(reason ? { reason } : {}) });
+    this.stopped = true;
+  }
+
+  /** Nothing is written after "stopped" (late snapshots or events would reopen a closed timeline). */
+  private write(line: TimelineLine): void {
+    if (!this.stopped) this.writer.write(line);
   }
 
   async snapshot(): Promise<void> {
@@ -163,7 +171,7 @@ export class TimelineRecorder {
         this.conn.call("GetStreamStatus"),
         this.conn.call("GetRecordStatus"),
       ]);
-      this.writer.write({
+      this.write({
         t: this.ts(),
         type: "snapshot",
         programScene: scene.currentProgramSceneName ?? null,
@@ -183,7 +191,7 @@ export class TimelineRecorder {
     if (event === "SceneItemEnableStateChanged" && typeof data.sceneName === "string" && typeof data.sceneItemId === "number") {
       extra.sourceName = await this.sceneItemName(data.sceneName, data.sceneItemId);
     }
-    this.writer.write({ t, type: "event", event, data: { ...data, ...extra } });
+    this.write({ t, type: "event", event, data: { ...data, ...extra } });
   }
 
   private async sceneItemName(sceneName: string, id: number): Promise<string | undefined> {

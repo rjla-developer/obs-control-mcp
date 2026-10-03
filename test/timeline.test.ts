@@ -170,6 +170,29 @@ describe("TimelineRecorder against the fake OBS", () => {
     expect(summary.segments.at(-1)!.streamOffsetSec).toBe(0);
   });
 
+  it("writes nothing after stop, even a snapshot that was still in flight", async () => {
+    const file = join(dir, "timeline.jsonl");
+    const secrets = new SecretRegistry();
+    const logger = createLogger(secrets, "debug", () => undefined);
+    conn = new ObsConnection({
+      config: { host: "127.0.0.1", port: fake.port, password: PASSWORD, connectTimeoutMs: 2000 },
+      secrets,
+      logger,
+      eventSubscriptions: TIMELINE_SUBSCRIPTIONS,
+    });
+    const rec = new TimelineRecorder(conn, new TimelineWriter(file, secrets), logger);
+    rec.start();
+    const connecting = conn.ensureConnected();
+    rec.stop("SIGINT");
+    await connecting;
+    await new Promise((r) => setTimeout(r, 100));
+    fake.emit("CurrentProgramSceneChanged", { sceneName: "BRB" });
+    await new Promise((r) => setTimeout(r, 100));
+    const lines = parseTimeline(readFileSync(file, "utf8")).lines;
+    expect(lines.at(-1)).toMatchObject({ type: "recorder", state: "stopped" });
+    expect(lines.some((l) => l.type === "snapshot" || l.type === "event")).toBe(false);
+  });
+
   it("logs the drop and reconnects with a new snapshot", async () => {
     const file = join(dir, "timeline.jsonl");
     const secrets = new SecretRegistry();
