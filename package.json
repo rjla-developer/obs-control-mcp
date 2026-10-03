@@ -1,0 +1,59 @@
+{
+  "name": "obs-control-mcp",
+  "version": "0.1.0",
+  "description": "MCP server to inspect and safely control OBS Studio over obs-websocket v5, with a live guard, dry runs by default, Source Record readiness checks and a scene timeline.",
+  "license": "MIT",
+  "author": "rjla-developer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rjla-developer/obs-control-mcp.git"
+  },
+  "homepage": "https://github.com/rjla-developer/obs-control-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/rjla-developer/obs-control-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "obs-control-mcp": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "check-secrets": "node scripts/check-secrets.mjs",
+    "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "keywords": [
+    "mcp",
+    "obs",
+    "obs-studio",
+    "obs-websocket",
+    "source-record",
+    "model-context-protocol"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.0",
+    "obs-websocket-js": "5.0.8",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "22.20.5",
+    "@types/ws": "8.18.2",
+    "eslint": "10.12.0",
+    "type-fest": "3.13.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "5.0.3",
+    "ws": "8.22.0"
+  }
+}

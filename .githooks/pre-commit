@@ -1,0 +1,4 @@
+#!/bin/sh
+# Installed by `npm install` (package.json "prepare" sets core.hooksPath=.githooks).
+# This repository is public: block commits that contain IPs, home paths, e-mails or tokens.
+exec node scripts/check-secrets.mjs --staged

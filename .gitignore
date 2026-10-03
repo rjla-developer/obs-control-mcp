@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.log
+.env
+.env.*
+# Local list of strings that must never be committed (your LAN IP, user name...). Read by scripts/check-secrets.mjs.
+.forbidden-strings
+# Timeline logs, if you point OBS_TIMELINE_FILE inside the repo by mistake
+*.jsonl
+*.jsonl.lock
+.DS_Store
